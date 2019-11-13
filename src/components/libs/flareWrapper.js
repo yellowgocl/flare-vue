@@ -2,8 +2,11 @@
 import Flare from '@2dimensions/flare-js';
 import Timer from '~/utils/timer';
 import * as glMatrix from 'gl-matrix';
+import { first } from 'lodash';
+
 
 export default class FlareWrapper {
+
     _canvas;
     _graphics;
     _onReady;
@@ -21,27 +24,35 @@ export default class FlareWrapper {
     constructor(canvas, { onReady, width, height, scale }) {
         this._onReady = onReady;
         this._canvas = canvas;
-        this._width = width || canvas.width;
-        this._height = height || canvas.height;
-        this._scale = scale || .25;
+        this._width = width;
+        this._height = height;
+        this._scale = scale;
         this.init();
     }
 
+    get scale() {
+        return this._scale || this.width / (this.artboardWidth || 1);
+    }
+
     get width() {
-        return this._width;
+        return this._width || (this._actor ? first(this._actor._Artboards)._Width : this._canvas.width);
     }
     get height() {
-        return this._height;
+        return this._height || (this._actor ? first(this._actor._Artboards)._Height : this._canvas.height);
+    }
+    get artboardWidth() {
+        return this._actor ? first(this._actor._Artboards)._Width : this._canvas.width;
+    }
+    get artboardHeight() {
+        return (this._actor ? first(this._actor._Artboards)._Height : this._canvas.height);
     }
     set actor(value) {
         this.disposeActor();
-        console.info(value)
         value.initialize(this._graphics);
         const instance = value.makeInstance();
         instance.initialize(this._graphics);
         this._actor = value;
         this._actorInstance = instance;
-        console.info(value)
         if (instance) {
             instance.initialize(this._graphics);
             if (instance._Animations.length) {
@@ -105,14 +116,15 @@ export default class FlareWrapper {
         }
 
         if (actor) {
-            const graphics = this._graphics;
-            const vw = graphics.viewportWidth;
-            const vh = graphics.viewportHeight;
+            let scale = this.scale;
+            //const graphics = this._graphics;
+            //const vw = graphics.viewportWidth;
+            //const vh = graphics.viewportHeight;
             const vt = this._viewTransform;
-            let scale = this._scale;
-            vt[0] = vt[3] = this._scale;
-            vt[4] = (-this._viewCenter[0] * scale + vw >> 1)
-            vt[5] = (-this._viewCenter[1] * scale + vh >> 1)
+            vt[0] = vt[3] = scale;
+            vt[4] = 0 //(-this._viewCenter[0] * scale + vw >> 1)
+            vt[5] = 0 //(-this._viewCenter[1] * scale + vh >> 1)
+            
             actor.advance(delta);
         }
         this._draw();
@@ -130,11 +142,13 @@ export default class FlareWrapper {
         graphics.flush();
     }
     
-    setSize(width, height) {
+    setSize(width, height, force = true) {
         width = width || this.width;
         height = height || this.height;
-        this._width = width;
-        this._height = height;
-        this._graphics.setSize(width, height);
+        if (force) {
+            this._width = width;
+            this._height = height;
+        }
+        this._graphics.setSize(this.artboardWidth * this.scale, this.artboardHeight * this.scale);
     }
 }

@@ -18,7 +18,7 @@ export default {
         this.flareWrapper = new FlareWrapper(this.flareCanvas, {
           onReady: (fw) => {
             fw.setSize(320, 600);
-            fw.load('http://localhost:8080/Jacko.flr');
+            fw.load('http://localhost:8080/star.flr');
           } 
         });
     },
