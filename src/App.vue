@@ -1,7 +1,7 @@
 <template>
   <div id="app">
     <canvas ref='mflareActorCanvas' ></canvas>
-    <button @click='onclick'>sdfs</button>
+    <button v-for='(v, k) in animations' :key='`v-${k}`' @click='onclick(v)'>{{v}}</button>
   </div>
 </template>
 
@@ -11,20 +11,23 @@ export default {
   name: 'app',
   data() {
         return {
-            flareWrapper: null
+            flareWrapper: null,
+            animations: []
         }
     },
     mounted() {
         this.flareWrapper = new FlareWrapper(this.flareCanvas, {
           onReady: (fw) => {
-            fw.setSize(320, 600);
-            fw.load('http://localhost:8080/star.flr');
+            fw.load('http://localhost:8080/star.flr').then((fw) => {
+                this.animations = fw.animations;
+                console.info(this.animations)
+            });
           } 
         });
     },
     methods: {
-      onclick() {
-        this.flareWrapper.restart();
+      onclick(v) {
+        this.flareWrapper.play(v);
       }
     },
     computed: {
