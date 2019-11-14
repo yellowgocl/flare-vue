@@ -4,7 +4,16 @@ import Timer from '~/utils/timer';
 import * as glMatrix from 'gl-matrix';
 import { first, forEach, isEmpty, isNumber, find } from 'lodash';
 
+const ScaleType = Object.freeze({
+    FIT: Symbol('fit'),
+    ORIGINAL: Symbol('original'),
+})
+
+export { ScaleType }
+
 export default class FlareWrapper {
+
+    
 
     _canvas;
     _graphics;
