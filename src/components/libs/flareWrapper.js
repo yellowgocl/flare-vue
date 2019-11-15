@@ -4,16 +4,9 @@ import Timer from '~/utils/timer';
 import * as glMatrix from 'gl-matrix';
 import { first, forEach, isEmpty, isNumber, find } from 'lodash';
 
-const ScaleType = Object.freeze({
-    FIT: Symbol('fit'),
-    ORIGINAL: Symbol('original'),
-})
 
-export { ScaleType }
 
 export default class FlareWrapper {
-
-    
 
     _canvas;
     _graphics;
@@ -89,8 +82,7 @@ export default class FlareWrapper {
                     }
                     this._animationNames[k] = v._Name
                 })
-                console.info(this._animationNames)
-                this.play('full')
+                // this.play('full')
                 // this._animation = instance.animations[0];
                 // this._animationInstance = new Flare.AnimationInstance(this._animation._Actor, this._animation);
                 // if (!this._animationInstance) {
