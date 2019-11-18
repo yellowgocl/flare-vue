@@ -2,15 +2,14 @@
 import Flare from '@2dimensions/flare-js';
 import Timer from '~/utils/timer';
 import * as glMatrix from 'gl-matrix';
-import { first, forEach, isEmpty, isNumber, find } from 'lodash';
-
+import { forEach, isEmpty, isNumber, find, isBoolean } from 'lodash';
+import { BoundsUtil, ScaleType } from './transformUtil'
 
 
 export default class FlareWrapper {
-
+    _inited = false;
     _canvas;
     _graphics;
-    _onReady;
     _viewTransform;
     _animationInstance = null;
     _animationInstanceMap = {}
@@ -24,15 +23,69 @@ export default class FlareWrapper {
     _viewCenter = [0.0, 0.0];
     _timer;
     _fps = 60
+    _scaleType;
+    _timeScale;
+    _trasparent = true
+    _autoFit = true
+    static async build(canvas, option) {
+        let r = new FlareWrapper(canvas, option||{})
+        return await r.initialize();
+    }
 
-    constructor(canvas, { onReady, width, height, scale, fps }) {
-        this._onReady = onReady;
+    constructor(canvas, { width, height, scale, fps, scaleType, timeScale, autoFit }) {
         this._canvas = canvas;
         this._width = width;
         this._height = height;
         this._scale = scale;
         this.fps = fps;
-        this.init();
+        this.scaleType = scaleType
+        this.timeScale = timeScale
+        this.autoFit = autoFit
+        // this.init();
+    }
+    set autoFit(v) {
+        this._autoFit = v
+    }
+    get autoFit() {
+        return !!this._autoFit
+    }
+    set timeScale(v) {
+        this._timeScale = v
+    }
+    get timeScale() {
+        return this._timeScale || 1.0
+    }
+    get trasparent() {
+        return this._trasparent == true ? 0 : this._trasparent
+    }
+    set trasparent(v) {
+        this._trasparent = v > 1 ? (v / 100) : v
+    }
+    set scaleType(v) {
+        this._scaleType = v;
+    }
+    get scaleType() {
+        return this._scaleType || ScaleType.FIT_CENTER;
+    }
+
+    get rect() {
+        return BoundsUtil.getBounds(this.scaleType, this.width, this.height, this.vw, this.vh )
+    }
+
+    get vw() {
+        let r = this._canvas ? this._canvas.width : this._width;
+        return r || this.width
+    }
+    get vh() {
+        let r = this._canvas ? this._canvas.height : this._height;
+        return r || this.height
+    }
+
+    get width() {
+        return this._animation ? this._animation._Artboard.width : 0;
+    }
+    get height() {
+        return this._animation ? this._animation._Artboard.height : 0;
     }
 
     get animations() {
@@ -47,22 +100,10 @@ export default class FlareWrapper {
     }
 
     get scale() {
-        return this._scale || this.width / (this.artboardWidth || 1);
+        return this._scale;
     }
-
-    get width() {
-        return this._width || (this._actor ? first(this._actor._Artboards)._Width : this._canvas.width);
-    }
-    get height() {
-        return this._height || (this._actor ? first(this._actor._Artboards)._Height : this._canvas.height);
-    }
-    get artboardWidth() {
-        return this._actor ? first(this._actor._Artboards)._Width : this._canvas.width;
-    }
-    get artboardHeight() {
-        return (this._actor ? first(this._actor._Artboards)._Height : this._canvas.height);
-    }
-    set actor(value) {
+    
+    setActor(value, autoplay) {
         this.disposeActor();
         value.initialize(this._graphics);
         const instance = value.makeInstance();
@@ -82,7 +123,8 @@ export default class FlareWrapper {
                     }
                     this._animationNames[k] = v._Name
                 })
-                // this.play('full')
+                
+                this.play(isBoolean(autoplay) ? 0 : autoplay)
                 // this._animation = instance.animations[0];
                 // this._animationInstance = new Flare.AnimationInstance(this._animation._Actor, this._animation);
                 // if (!this._animationInstance) {
@@ -93,7 +135,7 @@ export default class FlareWrapper {
         }
     }
 
-    play(name) {
+    play(name = 0) {
         if (isNumber(name)) {
             let temp = find(this._animationInstanceMap, { index: name });
             if (temp) {
@@ -108,7 +150,7 @@ export default class FlareWrapper {
         this._animation = ins.animation;
         this._animationInstance = ins.instance;
         if (!this._animationInstance) {
-            console.warn('no animation in here?');
+            console.warn('no animation in artboards?');
             return;
         } else {
             this.restart()
@@ -129,14 +171,14 @@ export default class FlareWrapper {
             this._actorInstance.dispose(this._graphics);
     }
 
-    load(url) {
+    load(url, autoplay) {
         const loader = new Flare.ActorLoader();
         const result = new Promise((resolve, reject) => {
             loader.load(url, (actor) => {
                 if (!actor || actor.error){
                     reject(!actor ? null : actor.error, this)
                 } else {
-                    this.actor = actor;
+                    this.setActor(actor, autoplay);
                     resolve(this);
                 }
             })
@@ -144,17 +186,30 @@ export default class FlareWrapper {
         
         return result;
     }
-
-    init() {
-        let canvas = this._canvas;
-        this._graphics = new Flare.Graphics(canvas);
-        this._graphics.initialize(() => {
-            this._viewTransform = glMatrix.mat2d.create();
-            this.disposeAnimations();
-            this._timer = Timer.setInterval(this._render.bind(this), 1000 / 60);
-            this._render(0);
-            this._onReady && this._onReady(this);
-        }, '');
+    dispose() {
+        Timer.clearInterval(this._timer)
+        this.disposeActor();
+        this.disposeAnimations();
+        this._canvas = null;
+        this._graphics = null;
+        this._inited = false;
+    }
+    initialize() {
+        if (this._inited) {
+            return Promise.reject('already inited')
+        }
+        return new Promise((resolve) => {
+            let canvas = this._canvas;
+            this._graphics = new Flare.Graphics(canvas);
+            this._graphics.initialize(() => {
+                this._viewTransform = glMatrix.mat2d.create();
+                this.disposeAnimations();
+                this._timer = Timer.setInterval(this._render.bind(this), 1000 / this.fps);
+                this._render(0);
+                // this._onReady && this._onReady(this);
+                resolve(this)
+            }, '');
+        })   
     }
 
     restart() {
@@ -162,27 +217,26 @@ export default class FlareWrapper {
             this._animationInstance.reset();
         }
     }
-
+    
     _render(delta) {
-        this.setSize(this.width, this.height);
+        this.setSize(this.autoFit ? this.width : this.vw, this.autoFit ? this.height : this.vh);
         const actor = this._actorInstance;
 
         if (this._animationInstance) {
             const ai = this._animationInstance;
             ai.time = ai.time + delta / 1000;
-            ai.apply(this._actorInstance, 1.0);
+            ai.apply(this._actorInstance, this.timeScale);
         }
-
         if (actor) {
-            let scale = this.scale;
+            let rect = this.rect
+            let scale = rect.scale;
             //const graphics = this._graphics;
             //const vw = graphics.viewportWidth;
             //const vh = graphics.viewportHeight;
             const vt = this._viewTransform;
             vt[0] = vt[3] = scale;
-            vt[4] = 0 //(-this._viewCenter[0] * scale + vw >> 1)
-            vt[5] = 0 //(-this._viewCenter[1] * scale + vh >> 1)
-            
+            vt[4] = rect.x //(-this._viewCenter[0] * scale + vw >> 1)
+            vt[5] = rect.y //(-this._viewCenter[1] * scale + vh >> 1)
             actor.advance(delta);
         }
         this._draw();
@@ -194,19 +248,17 @@ export default class FlareWrapper {
             return;
         }
         const graphics = this._graphics;
-        graphics.clear([.3628, .3628, .3628, 1.0]);
+        graphics.clear([.3628, .3628, .3628, this.trasparent]);
         graphics.setView(this._viewTransform);
         this._actorInstance.draw(graphics);
         graphics.flush();
     }
     
-    setSize(width, height, force = true) {
-        width = width || this.width;
-        height = height || this.height;
-        if (force) {
-            this._width = width;
-            this._height = height;
-        }
-        this._graphics.setSize(this.artboardWidth * this.scale, this.artboardHeight * this.scale);
+    setSize(width, height) {
+        width = width || this.width
+        height = height || this.height
+        // this._width = width;
+        // this._height = height
+        this._graphics.setSize(width, height);
     }
 }

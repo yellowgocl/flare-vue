@@ -1,51 +1,62 @@
 <template>
   <div id="app">
-    <canvas ref='mflareActorCanvas' ></canvas>
-    <button v-for='(v, k) in animations' :key='`v-${k}`' @click='onclick(v)'>{{v}}</button>
+    <!-- <canvas ref='mflareActorCanvas'></canvas>
     <div class="container">
     <div class="box box1" ref='viewport'></div>
     <div class="box box2" ref='content'></div>
-    </div>
+    </div> -->
+    <flare-actor
+      :src='"/star.flr"'
+      :animation='animation'
+      @onLoad='onLoad'></flare-actor>
+    <button v-for='(v, k) in animations' :key='`v-${k}`' @click='onclick(v)'>{{v}}</button>
   </div>
 </template>
 
 <script>
-import FlareWrapper from './components/libs/flareWrapper';
-import { BoundsUtil, ScaleType } from './components/libs/transformUtil'
+// import FlareWrapper from './components/libs/flareWrapper';
+// import { BoundsUtil, ScaleType } from './components/libs/transformUtil'
 export default {
   name: 'app',
   data() {
         return {
             flareWrapper: null,
-            animations: []
+            animations: [],
+            animation: undefined
         }
     },
-    mounted() {
-        this.flareWrapper = new FlareWrapper(this.flareCanvas, {
-          onReady: (fw) => {
-            fw.load('/star.flr').then((fw) => {
-                this.animations = fw.animations;
-                console.info(this.animations)
-            });
-          } 
-        });
+    async mounted() {
+      // this.flareWrapper = await FlareWrapper.build(this.flareCanvas, { autoFit: true })
+      // await this.flareWrapper.load('/star.flr', true)
+      // // r.play('tail')
+      //   // this.flareWrapper = new FlareWrapper(this.flareCanvas, {
+      //   //   onReady: (fw) => {
+      //   //     fw.load('/star.flr').then((fw) => {
+      //   //         this.animations = fw.animations;
+      //   //         console.info(this.animations)
+      //   //     });
+      //   //   } 
+      //   // });
         
-        let content = this.$refs.content;
-        let viewport = this.$refs.viewport
-        let bound = BoundsUtil.getBounds(ScaleType.CENTER_CROP, 
-            content.clientWidth, 
-            content.clientHeight, 
-            viewport.clientWidth, 
-            viewport.clientHeight)
-        content.style.top = `${bound.y}px`
-        content.style.left = `${bound.x}px`
-        content.style.width = `${bound.w}px`
-        content.style.height = `${bound.h}px`
+      // let content = this.$refs.content;
+      // let viewport = this.$refs.viewport
+      // let bound = BoundsUtil.getBounds(ScaleType.CENTER_CROP, 
+      //     content.clientWidth, 
+      //     content.clientHeight, 
+      //     viewport.clientWidth, 
+      //     viewport.clientHeight)
+      // content.style.top = `${bound.y}px`
+      // content.style.left = `${bound.x}px`
+      // content.style.width = `${bound.w}px`
+      // content.style.height = `${bound.h}px`
 
     },
     methods: {
       onclick(v) {
-        this.flareWrapper.play(v);
+        this.animation = (v);
+      },
+      onLoad(src, actor) {
+        this.animations = actor.animations;
       }
     },
     computed: {
@@ -74,4 +85,5 @@ export default {
     height: 232px;
     opacity: 0.3;
 }
+
 </style>

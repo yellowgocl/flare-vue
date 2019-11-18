@@ -62,7 +62,7 @@ export class BoundsUtil {
                 bounds = assign(bounds, { scale, x: dx, y: dy, w: ow * scale, h: oh * scale }) 
                 break;
         }
-        console.info(bounds);
+        // console.info(bounds);
         return bounds;
     }
 }
